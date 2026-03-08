@@ -581,7 +581,11 @@ async function fetchSheet(sheetName, retry = true) {
     if (ok) return fetchSheet(sheetName, false);
     throw new Error('Session expired — please reload the page');
   }
-  if (!res.ok) throw new Error(`Failed to load sheet (${res.status})`);
+  if (!res.ok) {
+    let errMsg = `Failed to load sheet (${res.status})`;
+    try { const j = await res.json(); errMsg = j.error?.message || errMsg; } catch {}
+    throw new Error(errMsg);
+  }
   const data = await res.json();
   const rows = data.values || [];
   sheetCache[sheetName] = rows;
@@ -607,7 +611,11 @@ async function writeToSheet(sheetName, rowIdx, colIdx, value, retry = true) {
     if (ok) return writeToSheet(sheetName, rowIdx, colIdx, value, false);
     throw new Error('Session expired — please reload the page');
   }
-  if (!res.ok) throw new Error(`Write failed (${res.status})`);
+  if (!res.ok) {
+    let errMsg = `Write failed (${res.status})`;
+    try { const j = await res.json(); errMsg = j.error?.message || errMsg; } catch {}
+    throw new Error(errMsg);
+  }
   return res.json();
 }
 
@@ -800,7 +808,7 @@ function renderExercises(parsed, sheetName) {
         } catch(e) {
           activeBtn.disabled = false;
           otherBtn.disabled = false;
-          showToast('Save failed — check connection', true);
+          showToast('Error: ' + e.message, true);
         }
       };
 
@@ -932,7 +940,7 @@ async function doSave(ex, sheetName, inputEl, btnEl, parsed) {
   } catch (e) {
     btnEl.disabled = false;
     btnEl.textContent = '↑';
-    showToast('Save failed — check connection', true);
+    showToast('Error: ' + e.message, true);
     console.error(e);
   }
 }
