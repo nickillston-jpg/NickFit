@@ -277,6 +277,46 @@
     .ex-input:focus { border-color: var(--orange); background: var(--bg2); }
     .ex-input.saved { border-color: var(--green); color: var(--green); }
 
+    /* Yes/No toggle */
+    .yn-wrap {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .yn-btn {
+      width: 48px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border2);
+      background: var(--bg3);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .yn-btn.selected-yes {
+      background: var(--green);
+      border-color: var(--green);
+      color: #062918;
+    }
+
+    .yn-btn.selected-no {
+      background: #444;
+      border-color: #444;
+      color: var(--text);
+    }
+
+    .yn-btn.saved {
+      opacity: 0.7;
+    }
+
     .save-btn {
       width: 34px;
       height: 34px;
@@ -410,7 +450,7 @@
 // =====================================================================
 // CONFIG — update CLIENT_ID after setting up Google Cloud Console
 // =====================================================================
-const CLIENT_ID = '671405090900-ma0trn3hgd13qgc4hefhmirs8ep53qk5.apps.googleusercontent.com';
+const CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID_HERE';
 const SPREADSHEET_ID = '1vPNfR9zXAG4XKeW_j6H9q9OKZacUFIBvwYCBIXB1a3I';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
@@ -693,35 +733,119 @@ function renderExercises(parsed, sheetName) {
       info.appendChild(prev);
     }
 
-    const wrap = document.createElement('div');
-    wrap.className = 'ex-input-wrap';
+    // Detect yes/no exercise based on current weight value
+    const isYesNo = /^(yes|no)$/i.test((ex.weight || '').trim());
 
-    const input = document.createElement('input');
-    input.className = 'ex-input';
-    input.type = 'text';
-    input.inputMode = 'decimal';
-    input.placeholder = '—';
-    input.setAttribute('autocomplete', 'off');
-    input.addEventListener('input', () => { inputs[ex.rowIndex] = input.value; });
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); doSave(ex, sheetName, input, btn, parsed); }
-    });
+    if (isYesNo) {
+      // Yes/No toggle buttons
+      const ynWrap = document.createElement('div');
+      ynWrap.className = 'yn-wrap';
 
-    const btn = document.createElement('button');
-    btn.className = 'save-btn';
-    btn.textContent = '↑';
-    btn.addEventListener('click', () => doSave(ex, sheetName, input, btn, parsed));
+      const yesBtn = document.createElement('button');
+      yesBtn.className = 'yn-btn';
+      yesBtn.textContent = 'Yes';
 
-    wrap.appendChild(input);
-    wrap.appendChild(btn);
-    row.appendChild(info);
-    row.appendChild(wrap);
+      const noBtn = document.createElement('button');
+      noBtn.className = 'yn-btn';
+      noBtn.textContent = 'No';
+
+      let selected = null;
+
+      const selectYN = async (value, activeBtn, otherBtn) => {
+        if (activeBtn.classList.contains('saved')) return;
+        selected = value;
+        inputs[ex.rowIndex] = value;
+        activeBtn.classList.add(value === 'yes' ? 'selected-yes' : 'selected-no');
+        otherBtn.classList.remove('selected-yes', 'selected-no');
+        // Auto-save on tap
+        activeBtn.disabled = true;
+        otherBtn.disabled = true;
+        try {
+          await doSaveValue(ex, sheetName, value, parsed);
+          yesBtn.classList.add('saved');
+          noBtn.classList.add('saved');
+          showToast(`Saved ${value} ✓`);
+        } catch(e) {
+          activeBtn.disabled = false;
+          otherBtn.disabled = false;
+          showToast('Save failed — check connection', true);
+        }
+      };
+
+      yesBtn.addEventListener('click', () => selectYN('yes', yesBtn, noBtn));
+      noBtn.addEventListener('click', () => selectYN('no', noBtn, yesBtn));
+
+      ynWrap.appendChild(yesBtn);
+      ynWrap.appendChild(noBtn);
+      row.appendChild(info);
+      row.appendChild(ynWrap);
+    } else {
+      // Regular weight input
+      const wrap = document.createElement('div');
+      wrap.className = 'ex-input-wrap';
+
+      const input = document.createElement('input');
+      input.className = 'ex-input';
+      input.type = 'text';
+      input.inputMode = 'text';
+      input.placeholder = '—';
+      input.setAttribute('autocomplete', 'off');
+      input.addEventListener('input', () => { inputs[ex.rowIndex] = input.value; });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doSave(ex, sheetName, input, btn, parsed); }
+      });
+
+      const btn = document.createElement('button');
+      btn.className = 'save-btn';
+      btn.textContent = '↑';
+      btn.addEventListener('click', () => doSave(ex, sheetName, input, btn, parsed));
+
+      wrap.appendChild(input);
+      wrap.appendChild(btn);
+      row.appendChild(info);
+      row.appendChild(wrap);
+    }
+
     content.appendChild(row);
   });
 }
 
 // =====================================================================
-// SAVE
+// SAVE (value passed directly — used by yes/no toggles)
+// =====================================================================
+async function doSaveValue(ex, sheetName, value, parsed) {
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const dateStr = `${dd}/${mm}/${yyyy}`;
+
+  delete sheetCache[sheetName];
+  delete parsedCache[sheetName];
+
+  const rows = await fetchSheet(sheetName);
+  sheetCache[sheetName] = rows;
+
+  const headerRow = rows[parsed.headerRowIdx] || [];
+  let targetCol = -1;
+
+  for (let c = 2; c < headerRow.length; c++) {
+    if ((headerRow[c] || '').trim() === dateStr) { targetCol = c; break; }
+  }
+
+  if (targetCol < 0) {
+    targetCol = parsed.nextDateCol;
+    for (let c = 2; c < 50; c++) {
+      if (!(headerRow[c] || '').trim()) { targetCol = c; break; }
+    }
+    await writeToSheet(sheetName, parsed.headerRowIdx, targetCol, dateStr);
+  }
+
+  await writeToSheet(sheetName, ex.rowIndex, targetCol, value);
+}
+
+// =====================================================================
+// SAVE (reads from input element — used by weight inputs)
 // =====================================================================
 async function doSave(ex, sheetName, inputEl, btnEl, parsed) {
   const value = inputEl.value.trim();
