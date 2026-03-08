@@ -801,7 +801,7 @@ function renderExercises(parsed, sheetName) {
         activeBtn.disabled = true;
         otherBtn.disabled = true;
         try {
-          await doSaveValue(ex, sheetName, value, parsed);
+          await doSaveValue(ex, sheetName, value);
           yesBtn.classList.add('saved');
           noBtn.classList.add('saved');
           showToast(`Saved ${value} ✓`);
@@ -832,13 +832,13 @@ function renderExercises(parsed, sheetName) {
       input.setAttribute('autocomplete', 'off');
       input.addEventListener('input', () => { inputs[ex.rowIndex] = input.value; });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); doSave(ex, sheetName, input, btn, parsed); }
+        if (e.key === 'Enter') { e.preventDefault(); doSave(ex, sheetName, input, btn); }
       });
 
       const btn = document.createElement('button');
       btn.className = 'save-btn';
       btn.textContent = '↑';
-      btn.addEventListener('click', () => doSave(ex, sheetName, input, btn, parsed));
+      btn.addEventListener('click', () => doSave(ex, sheetName, input, btn));
 
       wrap.appendChild(input);
       wrap.appendChild(btn);
@@ -851,43 +851,60 @@ function renderExercises(parsed, sheetName) {
 }
 
 // =====================================================================
-// SAVE (value passed directly — used by yes/no toggles)
+// SHARED SAVE CORE — finds/creates today's date column and writes value
 // =====================================================================
-async function doSaveValue(ex, sheetName, value, parsed) {
+async function saveToSheet(sheetName, exerciseRowIndex, value) {
   const today = new Date();
   const dd = String(today.getDate()).padStart(2, '0');
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const yyyy = today.getFullYear();
   const dateStr = `${dd}/${mm}/${yyyy}`;
 
+  // Always fetch fresh data (no cache) so we have the real header row
   delete sheetCache[sheetName];
   delete parsedCache[sheetName];
-
   const rows = await fetchSheet(sheetName);
-  sheetCache[sheetName] = rows;
 
-  const headerRow = rows[parsed.headerRowIdx] || [];
+  // Find the header row (row with day name in col B)
+  let headerRowIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (DAY_NAMES.includes((rows[i]?.[1] || '').trim())) { headerRowIdx = i; break; }
+  }
+  if (headerRowIdx < 0) throw new Error('Could not find header row in sheet');
+
+  const headerRow = rows[headerRowIdx] || [];
+
+  // Look for today's date already in the header (cols C onwards = index 2+)
   let targetCol = -1;
-
   for (let c = 2; c < headerRow.length; c++) {
     if ((headerRow[c] || '').trim() === dateStr) { targetCol = c; break; }
   }
 
+  // Not found — find first empty column after existing dates
   if (targetCol < 0) {
-    targetCol = parsed.nextDateCol;
     for (let c = 2; c < 50; c++) {
       if (!(headerRow[c] || '').trim()) { targetCol = c; break; }
     }
-    await writeToSheet(sheetName, parsed.headerRowIdx, targetCol, dateStr);
+    if (targetCol < 0) throw new Error('Could not find empty column for today');
+    // Write today's date into the header
+    await writeToSheet(sheetName, headerRowIdx, targetCol, dateStr);
   }
 
-  await writeToSheet(sheetName, ex.rowIndex, targetCol, value);
+  // Write the value into the exercise row
+  await writeToSheet(sheetName, exerciseRowIndex, targetCol, value);
+}
+
+// =====================================================================
+// SAVE (value passed directly — used by yes/no toggles)
+// =====================================================================
+async function doSaveValue(ex, sheetName, value) {
+  await saveToSheet(sheetName, ex.rowIndex, value);
 }
 
 // =====================================================================
 // SAVE (reads from input element — used by weight inputs)
 // =====================================================================
-async function doSave(ex, sheetName, inputEl, btnEl, parsed) {
+async function doSave(ex, sheetName, inputEl, btnEl) {
   const value = inputEl.value.trim();
   if (!value) return;
   if (btnEl.disabled) return;
@@ -896,47 +913,11 @@ async function doSave(ex, sheetName, inputEl, btnEl, parsed) {
   btnEl.textContent = '…';
 
   try {
-    const today = new Date();
-    const dd = String(today.getDate()).padStart(2, '0');
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const yyyy = today.getFullYear();
-    const dateStr = `${dd}/${mm}/${yyyy}`;
-
-    // Invalidate cache so next load reflects new data
-    delete sheetCache[sheetName];
-    delete parsedCache[sheetName];
-
-    // Re-fetch to get latest header row to find/create today's column
-    const rows = await fetchSheet(sheetName);
-    sheetCache[sheetName] = rows;
-
-    const headerRow = rows[parsed.headerRowIdx] || [];
-    let targetCol = -1;
-
-    // Check if today's date already exists as a column
-    for (let c = 2; c < headerRow.length; c++) {
-      if ((headerRow[c] || '').trim() === dateStr) { targetCol = c; break; }
-    }
-
-    // If not found, use next empty column
-    if (targetCol < 0) {
-      targetCol = parsed.nextDateCol;
-      // Also check again dynamically
-      for (let c = 2; c < 50; c++) {
-        if (!(headerRow[c] || '').trim()) { targetCol = c; break; }
-      }
-      // Write the date header first
-      await writeToSheet(sheetName, parsed.headerRowIdx, targetCol, dateStr);
-    }
-
-    // Write the exercise value
-    await writeToSheet(sheetName, ex.rowIndex, targetCol, value);
-
+    await saveToSheet(sheetName, ex.rowIndex, value);
     inputEl.classList.add('saved');
     btnEl.classList.add('saved');
     btnEl.textContent = '✓';
     showToast(`Saved ${value} ✓`);
-
   } catch (e) {
     btnEl.disabled = false;
     btnEl.textContent = '↑';
