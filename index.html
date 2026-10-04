@@ -136,39 +136,121 @@
       letter-spacing: 0.06em;
     }
 
-    /* Day chips */
-    .day-chips {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-      padding-bottom: 2px;
-    }
-    .day-chips::-webkit-scrollbar { display: none; }
-
-    .chip {
-      flex-shrink: 0;
-      padding: 5px 13px;
-      border-radius: 100px;
-      font-size: 11px;
-      font-weight: 700;
+    /* Back button */
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--orange);
       font-family: 'Barlow Condensed', sans-serif;
-      letter-spacing: 0.1em;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       cursor: pointer;
-      border: 1px solid var(--border2);
-      background: transparent;
-      color: var(--text-muted);
-      transition: all 0.15s;
+      padding: 0;
       -webkit-tap-highlight-color: transparent;
     }
+    .back-btn.hidden, .app-name.hidden { display: none; }
 
-    .chip.active {
-      background: var(--orange);
-      border-color: var(--orange);
-      color: white;
+    /* Progress bar (home) */
+    .progress-wrap { margin-top: 12px; }
+    .progress-text {
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 8px;
     }
+    .progress-bar { height: 4px; background: var(--border2); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--orange); border-radius: 4px; transition: width 0.3s; }
+
+    /* Routine list (home) */
+    .routine-list { padding: 8px 0 24px; }
+    .routine-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 18px 20px;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.2s, background 0.15s;
+    }
+    .routine-card:active { background: var(--bg2); }
+    .routine-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--orange);
+      width: 22px;
+      flex-shrink: 0;
+    }
+    .routine-info { flex: 1; min-width: 0; }
+    .routine-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      text-transform: uppercase;
+      line-height: 1.05;
+      letter-spacing: -0.01em;
+    }
+    .routine-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .routine-status {
+      flex-shrink: 0;
+      font-size: 20px;
+      color: var(--text-muted);
+    }
+    .routine-card.done { opacity: 0.35; }
+    .routine-card.done .routine-num { color: var(--text-muted); }
+    .routine-card.done .routine-status { color: var(--green); font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+
+    .reset-btn {
+      display: block;
+      margin: 24px auto 0;
+      background: none;
+      border: 1px solid var(--border2);
+      color: var(--text-dim);
+      border-radius: 100px;
+      padding: 9px 20px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .reset-btn:active { background: var(--bg2); }
+
+    /* Complete routine button */
+    .complete-wrap { padding: 24px 20px 8px; }
+    .complete-btn {
+      width: 100%;
+      background: var(--orange);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .complete-btn:active { transform: scale(0.98); background: var(--orange-dark); }
+    .complete-btn.done { background: var(--bg3); color: var(--green); border: 1.5px solid var(--border2); }
+    .complete-btn:disabled { opacity: 0.6; }
+    .complete-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; }
 
     /* Day heading */
     .day-heading {
@@ -427,13 +509,17 @@
   <div id="main-screen" class="hidden">
     <div class="header">
       <div class="header-meta">
-        <span class="app-name">NickFit</span>
+        <span class="app-name" id="app-name">NickFit</span>
+        <button class="back-btn hidden" id="back-btn">‹ Routines</button>
         <span class="date-label" id="date-label"></span>
       </div>
-      <div class="day-chips" id="day-chips"></div>
       <div class="day-heading">
         <div class="day-title" id="day-title">—</div>
         <div class="day-subtitle" id="day-subtitle"></div>
+        <div class="progress-wrap" id="home-progress" style="display:none">
+          <div class="progress-text" id="progress-text"></div>
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        </div>
       </div>
       <div class="divider"></div>
     </div>
@@ -448,36 +534,29 @@
 
 <script>
 // =====================================================================
-// CONFIG — update CLIENT_ID after setting up Google Cloud Console
+// CONFIG
 // =====================================================================
 const CLIENT_ID = '671405090900-ma0trn3hgd13qgc4hefhmirs8ep53qk5.apps.googleusercontent.com';
 const SPREADSHEET_ID = '1vPNfR9zXAG4XKeW_j6H9q9OKZacUFIBvwYCBIXB1a3I';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+const API = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
 
-// Map JS getDay() (0=Sun, 1=Mon ... 6=Sat) to sheet tab name
-// If a day has no tab, set to null
-const DAY_SHEET_MAP = {
-  0: 'Sunday',
-  1: 'Monday',
-  2: 'Tuesday',
-  3: 'Wednesday',
-  4: 'Thursday',
-  5: 'Friday',
-  6: 'Saturday',
-};
-
-const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Hidden tab that stores which routines are done in the current cycle.
+// Every other visible tab in the spreadsheet is treated as a routine, in tab order.
+const PROGRESS_TAB = 'Progress';
 
 // =====================================================================
 // STATE
 // =====================================================================
 let accessToken = null;
-let selectedDay = new Date().getDay();
-let sheetCache = {};     // sheetName -> raw rows array
-let parsedCache = {};    // sheetName -> parsed data
-let inputs = {};         // rowIndex -> input value
-let saved = {};          // rowIndex -> bool
+let routines = [];        // [{ sheetId, tab, heading, lastDone }]
+let completed = [];       // [{ sheetId, tab, date }] for the current cycle
+let currentRoutine = null;
+let homeLoadedOnce = false;
+let sheetCache = {};      // tab -> raw rows
+let parsedCache = {};     // tab -> parsed data
+let inputs = {};
+let saved = {};
 
 // =====================================================================
 // GOOGLE AUTH
@@ -514,7 +593,7 @@ function onAuthResponse(resp) {
   } else {
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('main-screen').classList.remove('hidden');
-    loadDay(selectedDay);
+    showHome();
   }
 }
 
@@ -537,124 +616,264 @@ document.getElementById('sign-in-btn').addEventListener('click', () => {
 });
 
 // =====================================================================
-// DAY CHIPS
+// SHEETS API HELPERS
 // =====================================================================
-function buildDayChips() {
-  const container = document.getElementById('day-chips');
-  container.innerHTML = '';
-  DAY_SHORT.forEach((name, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'chip' + (idx === selectedDay ? ' active' : '');
-    btn.textContent = name;
-    btn.addEventListener('click', () => selectDay(idx));
-    container.appendChild(btn);
+async function api(path, opts = {}, retry = true) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
   });
-}
-
-function selectDay(idx) {
-  selectedDay = idx;
-  buildDayChips();
-  loadDay(idx);
-}
-
-// =====================================================================
-// DATE LABEL
-// =====================================================================
-function updateDateLabel() {
-  const d = new Date();
-  document.getElementById('date-label').textContent =
-    d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-// =====================================================================
-// SHEET DATA
-// =====================================================================
-async function fetchSheet(sheetName, retry = true) {
-  if (sheetCache[sheetName]) return sheetCache[sheetName];
-  const range = encodeURIComponent(`${sheetName}!A1:Z60`);
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
   if (res.status === 401 && retry) {
     const ok = await refreshToken();
-    if (ok) return fetchSheet(sheetName, false);
+    if (ok) return api(path, opts, false);
     throw new Error('Session expired — please reload the page');
   }
   if (!res.ok) {
-    let errMsg = `Failed to load sheet (${res.status})`;
-    try { const j = await res.json(); errMsg = j.error?.message || errMsg; } catch {}
-    throw new Error(errMsg);
-  }
-  const data = await res.json();
-  const rows = data.values || [];
-  sheetCache[sheetName] = rows;
-  return rows;
-}
-
-async function writeToSheet(sheetName, rowIdx, colIdx, value, retry = true) {
-  const colLetter = colIndexToLetter(colIdx);
-  const range = `${sheetName}!${colLetter}${rowIdx + 1}`;
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ values: [[value]] }),
-    }
-  );
-  if (res.status === 401 && retry) {
-    const ok = await refreshToken();
-    if (ok) return writeToSheet(sheetName, rowIdx, colIdx, value, false);
-    throw new Error('Session expired — please reload the page');
-  }
-  if (!res.ok) {
-    let errMsg = `Write failed (${res.status})`;
+    let errMsg = `Sheets request failed (${res.status})`;
     try { const j = await res.json(); errMsg = j.error?.message || errMsg; } catch {}
     throw new Error(errMsg);
   }
   return res.json();
 }
 
+// A1 range with the tab name quoted, so names with spaces work ("Bike Zone 2")
+function a1(tab, range) {
+  return `'${tab.replace(/'/g, "''")}'!${range}`;
+}
+
 function colIndexToLetter(idx) {
-  // Handle up to ZZ (idx 0 = A, 25 = Z, 26 = AA, etc.)
   let result = '';
-  idx++; // 1-based
+  idx++;
   while (idx > 0) {
-    let rem = (idx - 1) % 26;
+    const rem = (idx - 1) % 26;
     result = String.fromCharCode(65 + rem) + result;
     idx = Math.floor((idx - 1) / 26);
   }
   return result;
 }
 
+async function fetchSheet(tab) {
+  if (sheetCache[tab]) return sheetCache[tab];
+  const data = await api(`/values/${encodeURIComponent(a1(tab, 'A1:Z60'))}`);
+  const rows = data.values || [];
+  sheetCache[tab] = rows;
+  return rows;
+}
+
+async function writeCell(tab, rowIdx, colIdx, value) {
+  const range = a1(tab, `${colIndexToLetter(colIdx)}${rowIdx + 1}`);
+  return api(`/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    body: JSON.stringify({ values: [[value]] }),
+  });
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+// The routine header row is the first row with text in column B.
+// Dates of past sessions run along that row from column C.
+function findHeaderRow(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    if ((rows[i]?.[1] || '').trim()) return i;
+  }
+  return -1;
+}
+
 // =====================================================================
-// PARSE SHEET ROWS
+// ROUTINES + PROGRESS
+// =====================================================================
+async function loadRoutinesAndProgress() {
+  const meta = await api('?fields=sheets.properties(sheetId,title,index,hidden)');
+  const sheets = (meta.sheets || []).map(s => s.properties).sort((a, b) => a.index - b.index);
+
+  // Make sure the hidden Progress tab exists
+  if (!sheets.some(s => s.title === PROGRESS_TAB)) {
+    await api(':batchUpdate', {
+      method: 'POST',
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: PROGRESS_TAB, hidden: true } } }] }),
+    });
+    await api(`/values/${encodeURIComponent(a1(PROGRESS_TAB, 'A1:C1'))}?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: [['Routine ID', 'Routine', 'Completed']] }),
+    });
+  }
+
+  const routineSheets = sheets.filter(s => !s.hidden && s.title !== PROGRESS_TAB);
+
+  // One batch call: progress rows + the top of every routine tab (for heading + last date)
+  const ranges = [a1(PROGRESS_TAB, 'A2:C100'), ...routineSheets.map(s => a1(s.title, 'A1:Z6'))];
+  const qs = ranges.map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+  const batch = await api(`/values:batchGet?${qs}`);
+  const vr = batch.valueRanges || [];
+
+  routines = routineSheets.map((s, i) => {
+    const rows = vr[i + 1]?.values || [];
+    const h = findHeaderRow(rows);
+    const headerRow = h >= 0 ? rows[h] : [];
+    const dates = headerRow.slice(2).map(v => (v || '').trim()).filter(Boolean);
+    return {
+      sheetId: s.sheetId,
+      tab: s.title,
+      heading: h >= 0 ? headerRow[1].trim() : s.title,
+      lastDone: dates.length ? dates[dates.length - 1] : '',
+    };
+  });
+
+  const ids = new Set(routines.map(r => String(r.sheetId)));
+  completed = (vr[0]?.values || [])
+    .filter(r => r[0] && ids.has(String(r[0])))
+    .map(r => ({ sheetId: String(r[0]), tab: r[1] || '', date: r[2] || '' }));
+
+  // Safety net: if every routine is already marked done, start a fresh cycle
+  if (routines.length && completed.length >= routines.length) {
+    completed = [];
+    await writeProgress();
+  }
+}
+
+async function writeProgress() {
+  await api(`/values/${encodeURIComponent(a1(PROGRESS_TAB, 'A2:C100'))}:clear`, { method: 'POST', body: '{}' });
+  if (completed.length) {
+    await api(`/values/${encodeURIComponent(a1(PROGRESS_TAB, 'A2'))}?valueInputOption=RAW`, {
+      method: 'PUT',
+      body: JSON.stringify({ values: completed.map(c => [c.sheetId, c.tab, c.date]) }),
+    });
+  }
+}
+
+function isDone(r) {
+  return completed.some(c => c.sheetId === String(r.sheetId));
+}
+
+// =====================================================================
+// HOME SCREEN
+// =====================================================================
+function setHeaderForHome() {
+  document.getElementById('app-name').classList.remove('hidden');
+  document.getElementById('back-btn').classList.add('hidden');
+  document.getElementById('day-title').textContent = 'Routines';
+  document.getElementById('day-subtitle').textContent = '';
+  document.getElementById('home-progress').style.display = '';
+}
+
+function renderProgress() {
+  const total = routines.length;
+  const done = routines.filter(isDone).length;
+  document.getElementById('progress-text').textContent = total ? `${done} of ${total} complete this cycle` : '';
+  document.getElementById('progress-fill').style.width = total ? `${(done / total) * 100}%` : '0%';
+}
+
+function renderHome() {
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+  renderProgress();
+
+  if (!routines.length) {
+    content.innerHTML = '<div class="loading"><div class="loading-label">No routine tabs found in the sheet</div></div>';
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'routine-list';
+
+  routines.forEach((r, i) => {
+    const done = isDone(r);
+    const card = document.createElement('button');
+    card.className = 'routine-card' + (done ? ' done' : '');
+
+    const num = document.createElement('div');
+    num.className = 'routine-num';
+    num.textContent = String(i + 1).padStart(2, '0');
+
+    const info = document.createElement('div');
+    info.className = 'routine-info';
+    const name = document.createElement('div');
+    name.className = 'routine-name';
+    name.textContent = r.heading;
+    info.appendChild(name);
+    if (r.lastDone) {
+      const meta = document.createElement('div');
+      meta.className = 'routine-meta';
+      meta.textContent = `Last done ${r.lastDone}`;
+      info.appendChild(meta);
+    }
+
+    const status = document.createElement('div');
+    status.className = 'routine-status';
+    status.textContent = done ? 'Done ✓' : '›';
+
+    card.appendChild(num);
+    card.appendChild(info);
+    card.appendChild(status);
+    card.addEventListener('click', () => openRoutine(r));
+    list.appendChild(card);
+  });
+
+  const reset = document.createElement('button');
+  reset.className = 'reset-btn';
+  reset.textContent = 'Reset cycle';
+  reset.addEventListener('click', manualReset);
+  list.appendChild(reset);
+
+  content.appendChild(list);
+}
+
+async function showHome() {
+  currentRoutine = null;
+  setHeaderForHome();
+  const content = document.getElementById('content');
+
+  if (homeLoadedOnce) {
+    renderHome(); // show what we have straight away, then refresh from the sheet
+  } else {
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><div class="loading-label">Loading routines…</div></div>';
+  }
+
+  try {
+    await loadRoutinesAndProgress();
+    homeLoadedOnce = true;
+    if (!currentRoutine) renderHome();
+  } catch (e) {
+    if (!homeLoadedOnce) {
+      content.innerHTML = `<div class="loading"><div class="loading-label" style="color:var(--orange)">${e.message}</div></div>`;
+    } else {
+      showToast('Error: ' + e.message, true);
+    }
+  }
+}
+
+document.getElementById('back-btn').addEventListener('click', showHome);
+
+async function manualReset() {
+  if (!completed.length) { showToast('Nothing to reset'); return; }
+  if (!confirm('Reset the cycle? All routines will become available again.')) return;
+  try {
+    completed = [];
+    await writeProgress();
+    renderHome();
+    showToast('Cycle reset ✓');
+  } catch (e) {
+    showToast('Error: ' + e.message, true);
+  }
+}
+
+// =====================================================================
+// ROUTINE SCREEN (same as the old day screen)
 // =====================================================================
 function parseSheet(rows) {
-  // Find the header row (has the day name in col B = index 1)
-  let headerRowIdx = -1;
-  for (let i = 0; i < rows.length; i++) {
-    const b = (rows[i]?.[1] || '').trim();
-    if (DAY_NAMES.includes(b)) { headerRowIdx = i; break; }
-  }
+  const headerRowIdx = findHeaderRow(rows);
   if (headerRowIdx < 0) return null;
 
   const headerRow = rows[headerRowIdx] || [];
   const subtitle = (rows[headerRowIdx + 1]?.[1] || '').trim();
 
-  // Find the next empty date column in the header row (cols start at index 2)
-  let nextDateCol = 2;
-  for (let c = 2; c < 30; c++) {
-    const val = (headerRow[c] || '').trim();
-    if (!val) { nextDateCol = c; break; }
-    nextDateCol = c + 1;
-  }
-
-  // Parse exercises starting 2 rows after header
   const exercises = [];
   const startRow = headerRowIdx + 2;
 
@@ -663,77 +882,63 @@ function parseSheet(rows) {
     const name = (row[1] || '').trim();
     if (!name) continue;
 
-    const weight = (row[2] || '').trim();
+    // "Last" = most recent value in this row (rightmost non-empty date column)
+    let weight = '';
+    for (let c = row.length - 1; c >= 2; c--) {
+      const v = (row[c] || '').trim();
+      if (v) { weight = v; break; }
+    }
 
-    // Heuristic for section headers: bold-looking rows with no weight/number pattern
-    // They tend to be things like "Primer", "Main Work", "Primer (Activation...)"
     const looksLikeExercise = /[–\-×x×\d]/.test(name) || weight !== '';
     const isSectionHeader = !looksLikeExercise;
-    // Rows that are sub-notes of previous exercise (indented or starting with digit like "2–3 sec...")
     const isNote = !isSectionHeader && /^\d+[–\-]/.test(name) && weight === '' && i > startRow;
 
     exercises.push({ name, weight, rowIndex: i, isSectionHeader, isNote });
   }
 
-  return {
-    title: headerRow[1] || DAY_NAMES[selectedDay],
-    subtitle,
-    exercises,
-    headerRowIdx,
-    nextDateCol,
-  };
+  return { title: headerRow[1].trim(), subtitle, exercises, headerRowIdx };
 }
 
-// =====================================================================
-// RENDER
-// =====================================================================
-async function loadDay(dayIdx) {
+async function openRoutine(r) {
+  currentRoutine = r;
   inputs = {};
   saved = {};
 
-  const sheetName = DAY_SHEET_MAP[dayIdx];
+  document.getElementById('app-name').classList.add('hidden');
+  document.getElementById('back-btn').classList.remove('hidden');
+  document.getElementById('home-progress').style.display = 'none';
+
   const titleEl = document.getElementById('day-title');
   const subtitleEl = document.getElementById('day-subtitle');
   const content = document.getElementById('content');
 
-  titleEl.textContent = DAY_NAMES[dayIdx];
+  titleEl.textContent = r.heading;
   subtitleEl.textContent = '';
-
-  if (!sheetName) {
-    content.innerHTML = `
-      <div class="rest-day">
-        <div class="rest-icon">💤</div>
-        <div class="rest-title">Rest Day</div>
-        <div class="rest-sub">No workout scheduled for ${DAY_NAMES[dayIdx]}.<br>Recover well.</div>
-      </div>`;
-    return;
-  }
-
   content.innerHTML = '<div class="loading"><div class="spinner"></div><div class="loading-label">Loading workout…</div></div>';
 
   try {
-    let parsed = parsedCache[sheetName];
+    let parsed = parsedCache[r.tab];
     if (!parsed) {
-      const rows = await fetchSheet(sheetName);
-      parsed = parseSheet(rows);
-      if (parsed) parsedCache[sheetName] = parsed;
+      parsed = parseSheet(await fetchSheet(r.tab));
+      if (parsed) parsedCache[r.tab] = parsed;
     }
+    if (currentRoutine !== r) return; // user went back while loading
 
     if (!parsed) {
-      content.innerHTML = `<div class="loading"><div class="loading-label">No data found for ${sheetName}</div></div>`;
+      content.innerHTML = `<div class="loading"><div class="loading-label">No data found for ${r.heading}</div></div>`;
       return;
     }
 
     titleEl.textContent = parsed.title;
     subtitleEl.textContent = parsed.subtitle;
-
-    renderExercises(parsed, sheetName);
+    renderExercises(parsed, r.tab);
+    renderCompleteButton(r);
   } catch (e) {
     content.innerHTML = `<div class="loading"><div class="loading-label" style="color:var(--orange)">${e.message}</div></div>`;
   }
 }
 
-function renderExercises(parsed, sheetName) {
+function renderExercises(parsed, tab) {
   const content = document.getElementById('content');
   content.innerHTML = '';
 
@@ -769,15 +974,14 @@ function renderExercises(parsed, sheetName) {
     if (ex.weight) {
       const prev = document.createElement('div');
       prev.className = 'ex-prev';
-      prev.innerHTML = `Last: <b>${ex.weight}</b>`;
+      prev.innerHTML = 'Last: <b></b>';
+      prev.querySelector('b').textContent = ex.weight;
       info.appendChild(prev);
     }
 
-    // Detect yes/no exercise based on current weight value
     const isYesNo = /^(yes|no)$/i.test((ex.weight || '').trim());
 
     if (isYesNo) {
-      // Yes/No toggle buttons
       const ynWrap = document.createElement('div');
       ynWrap.className = 'yn-wrap';
 
@@ -789,23 +993,19 @@ function renderExercises(parsed, sheetName) {
       noBtn.className = 'yn-btn';
       noBtn.textContent = 'No';
 
-      let selected = null;
-
       const selectYN = async (value, activeBtn, otherBtn) => {
         if (activeBtn.classList.contains('saved')) return;
-        selected = value;
         inputs[ex.rowIndex] = value;
         activeBtn.classList.add(value === 'yes' ? 'selected-yes' : 'selected-no');
         otherBtn.classList.remove('selected-yes', 'selected-no');
-        // Auto-save on tap
         activeBtn.disabled = true;
         otherBtn.disabled = true;
         try {
-          await doSaveValue(ex, sheetName, value);
+          await saveToSheet(tab, ex.rowIndex, value);
           yesBtn.classList.add('saved');
           noBtn.classList.add('saved');
           showToast(`Saved ${value} ✓`);
-        } catch(e) {
+        } catch (e) {
           activeBtn.disabled = false;
           otherBtn.disabled = false;
           showToast('Error: ' + e.message, true);
@@ -820,7 +1020,6 @@ function renderExercises(parsed, sheetName) {
       row.appendChild(info);
       row.appendChild(ynWrap);
     } else {
-      // Regular weight input
       const wrap = document.createElement('div');
       wrap.className = 'ex-input-wrap';
 
@@ -832,13 +1031,13 @@ function renderExercises(parsed, sheetName) {
       input.setAttribute('autocomplete', 'off');
       input.addEventListener('input', () => { inputs[ex.rowIndex] = input.value; });
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); doSave(ex, sheetName, input, btn); }
+        if (e.key === 'Enter') { e.preventDefault(); doSave(ex, tab, input, btn); }
       });
 
       const btn = document.createElement('button');
       btn.className = 'save-btn';
       btn.textContent = '↑';
-      btn.addEventListener('click', () => doSave(ex, sheetName, input, btn));
+      btn.addEventListener('click', () => doSave(ex, tab, input, btn));
 
       wrap.appendChild(input);
       wrap.appendChild(btn);
@@ -850,61 +1049,88 @@ function renderExercises(parsed, sheetName) {
   });
 }
 
-// =====================================================================
-// SHARED SAVE CORE — finds/creates today's date column and writes value
-// =====================================================================
-async function saveToSheet(sheetName, exerciseRowIndex, value) {
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const dateStr = `${dd}/${mm}/${yyyy}`;
+function renderCompleteButton(r) {
+  const content = document.getElementById('content');
+  const wrap = document.createElement('div');
+  wrap.className = 'complete-wrap';
 
-  // Always fetch fresh data (no cache) so we have the real header row
-  delete sheetCache[sheetName];
-  delete parsedCache[sheetName];
-  const rows = await fetchSheet(sheetName);
+  const btn = document.createElement('button');
+  const hint = document.createElement('div');
+  hint.className = 'complete-hint';
 
-  // Find the header row (row with day name in col B)
-  let headerRowIdx = -1;
-  for (let i = 0; i < rows.length; i++) {
-    if (DAY_NAMES.includes((rows[i]?.[1] || '').trim())) { headerRowIdx = i; break; }
-  }
+  const paint = () => {
+    const done = isDone(r);
+    btn.className = 'complete-btn' + (done ? ' done' : '');
+    btn.textContent = done ? 'Completed ✓' : 'Complete routine';
+    hint.textContent = done ? 'Tap to mark as not done' : '';
+  };
+  paint();
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    const wasDone = isDone(r);
+    const before = completed.slice();
+    try {
+      if (wasDone) {
+        completed = completed.filter(c => c.sheetId !== String(r.sheetId));
+        await writeProgress();
+        paint();
+        showToast('Marked as not done');
+      } else {
+        completed.push({ sheetId: String(r.sheetId), tab: r.tab, date: todayStr() });
+        const cycleDone = routines.length && routines.every(isDone);
+        if (cycleDone) completed = [];
+        await writeProgress();
+        showToast(cycleDone ? 'All routines done — cycle reset 🔁' : `${r.heading} complete ✓`);
+        setTimeout(showHome, 700);
+      }
+    } catch (e) {
+      completed = before;
+      paint();
+      showToast('Error: ' + e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  wrap.appendChild(btn);
+  wrap.appendChild(hint);
+  content.appendChild(wrap);
+}
+
+// =====================================================================
+// SAVE — finds/creates today's date column and writes the value
+// =====================================================================
+async function saveToSheet(tab, exerciseRowIndex, value) {
+  const dateStr = todayStr();
+
+  // Always read fresh so we have the real header row
+  delete sheetCache[tab];
+  delete parsedCache[tab];
+  const rows = await fetchSheet(tab);
+
+  const headerRowIdx = findHeaderRow(rows);
   if (headerRowIdx < 0) throw new Error('Could not find header row in sheet');
-
   const headerRow = rows[headerRowIdx] || [];
 
-  // Look for today's date already in the header (cols C onwards = index 2+)
   let targetCol = -1;
   for (let c = 2; c < headerRow.length; c++) {
     if ((headerRow[c] || '').trim() === dateStr) { targetCol = c; break; }
   }
 
-  // Not found — find first empty column after existing dates
   if (targetCol < 0) {
     for (let c = 2; c < 50; c++) {
       if (!(headerRow[c] || '').trim()) { targetCol = c; break; }
     }
     if (targetCol < 0) throw new Error('Could not find empty column for today');
-    // Write today's date into the header
-    await writeToSheet(sheetName, headerRowIdx, targetCol, dateStr);
+    await writeCell(tab, headerRowIdx, targetCol, dateStr);
   }
 
-  // Write the value into the exercise row
-  await writeToSheet(sheetName, exerciseRowIndex, targetCol, value);
+  await writeCell(tab, exerciseRowIndex, targetCol, value);
+  delete sheetCache[tab];
 }
 
-// =====================================================================
-// SAVE (value passed directly — used by yes/no toggles)
-// =====================================================================
-async function doSaveValue(ex, sheetName, value) {
-  await saveToSheet(sheetName, ex.rowIndex, value);
-}
-
-// =====================================================================
-// SAVE (reads from input element — used by weight inputs)
-// =====================================================================
-async function doSave(ex, sheetName, inputEl, btnEl) {
+async function doSave(ex, tab, inputEl, btnEl) {
   const value = inputEl.value.trim();
   if (!value) return;
   if (btnEl.disabled) return;
@@ -913,7 +1139,7 @@ async function doSave(ex, sheetName, inputEl, btnEl) {
   btnEl.textContent = '…';
 
   try {
-    await saveToSheet(sheetName, ex.rowIndex, value);
+    await saveToSheet(tab, ex.rowIndex, value);
     inputEl.classList.add('saved');
     btnEl.classList.add('saved');
     btnEl.textContent = '✓';
@@ -927,7 +1153,7 @@ async function doSave(ex, sheetName, inputEl, btnEl) {
 }
 
 // =====================================================================
-// TOAST
+// TOAST / ERRORS
 // =====================================================================
 let toastTimer = null;
 
@@ -953,9 +1179,13 @@ function showError(msg) {
 // =====================================================================
 // INIT
 // =====================================================================
+function updateDateLabel() {
+  document.getElementById('date-label').textContent =
+    new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 window.addEventListener('load', () => {
   updateDateLabel();
-  buildDayChips();
   initAuth();
 });
 </script>
