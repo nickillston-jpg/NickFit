@@ -500,7 +500,7 @@
   <!-- AUTH SCREEN -->
   <div id="auth-screen">
     <div class="auth-logo">NF</div>
-    <p class="auth-tagline">Sign in with Google to load your workout and log your weights.</p>
+    <p class="auth-tagline" id="auth-tagline">Sign in with Google to load your workout and log your weights.</p>
     <button class="auth-btn" id="sign-in-btn">Connect Google</button>
     <div class="error-msg hidden" id="auth-error"></div>
   </div>
@@ -560,8 +560,14 @@ let saved = {};
 
 // =====================================================================
 // GOOGLE AUTH
+// The access token lasts ~1 hour. It's kept in this browser's storage so
+// reopening the app (e.g. from the home-screen icon) doesn't need a new
+// sign-in. When it expires, the app shows a Reconnect button: mobile
+// browsers only allow Google's sign-in window to open from a tap.
 // =====================================================================
+const TOKEN_KEY = 'nickfit_token';
 let tokenClient = null;
+let tokenExpiresAt = 0;
 
 function initAuth() {
   if (!window.google?.accounts?.oauth2) {
@@ -572,53 +578,115 @@ function initAuth() {
     client_id: CLIENT_ID,
     scope: SCOPES,
     callback: onAuthResponse,
+    error_callback: onAuthError,
   });
 }
 
-let tokenRefreshResolve = null;
+function storeToken(token, expiresInSec) {
+  accessToken = token;
+  tokenExpiresAt = Date.now() + (Number(expiresInSec) || 3600) * 1000;
+  try { localStorage.setItem(TOKEN_KEY, JSON.stringify({ t: token, e: tokenExpiresAt })); } catch {}
+}
+
+function clearToken() {
+  accessToken = null;
+  tokenExpiresAt = 0;
+  try { localStorage.removeItem(TOKEN_KEY); } catch {}
+}
+
+function loadStoredToken() {
+  try {
+    const s = JSON.parse(localStorage.getItem(TOKEN_KEY) || 'null');
+    if (s && s.t && s.e - 2 * 60 * 1000 > Date.now()) {
+      accessToken = s.t;
+      tokenExpiresAt = s.e;
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+function tokenValid() {
+  return !!accessToken && tokenExpiresAt - 60 * 1000 > Date.now();
+}
+
+function showAuthScreen(message) {
+  document.getElementById('main-screen').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  const btn = document.getElementById('sign-in-btn');
+  btn.disabled = false;
+  btn.textContent = message ? 'Reconnect Google' : 'Connect Google';
+  document.getElementById('auth-tagline').textContent = message ||
+    'Sign in with Google to load your workout and log your weights.';
+}
+
+function showMainScreen() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('main-screen').classList.remove('hidden');
+  document.getElementById('auth-error').classList.add('hidden');
+}
 
 function onAuthResponse(resp) {
+  const btn = document.getElementById('sign-in-btn');
+  btn.disabled = false;
   if (resp.error) {
-    if (tokenRefreshResolve) { tokenRefreshResolve(false); tokenRefreshResolve = null; }
     showError(resp.error_description || resp.error);
     return;
   }
-  accessToken = resp.access_token;
-  clearTimeout(window._tokenTimer);
-  window._tokenTimer = setTimeout(() => silentRefresh(), 55 * 60 * 1000);
+  storeToken(resp.access_token, resp.expires_in);
+  showMainScreen();
+  // Return to the routine that was open, if any
+  if (currentRoutine) openRoutine(currentRoutine); else showHome();
+}
 
-  if (tokenRefreshResolve) {
-    tokenRefreshResolve(true);
-    tokenRefreshResolve = null;
+function onAuthError(err) {
+  const btn = document.getElementById('sign-in-btn');
+  btn.disabled = false;
+  btn.textContent = 'Connect Google';
+  const type = err?.type || '';
+  if (type === 'popup_failed_to_open') {
+    showError('The Google sign-in window was blocked. Allow pop-ups for this site in your browser settings, then tap Connect again.');
+  } else if (type === 'popup_closed') {
+    showError('The Google sign-in window was closed before finishing. Tap Connect to try again.');
   } else {
-    document.getElementById('auth-screen').classList.add('hidden');
-    document.getElementById('main-screen').classList.remove('hidden');
-    showHome();
+    showError('Google sign-in failed' + (type ? ` (${type})` : '') + '. Tap Connect to try again.');
   }
 }
 
-function silentRefresh() {
-  if (tokenClient) tokenClient.requestAccessToken({ prompt: '' });
-}
-
-function refreshToken() {
-  return new Promise((resolve) => {
-    tokenRefreshResolve = resolve;
-    tokenClient.requestAccessToken({ prompt: '' });
-    setTimeout(() => { if (tokenRefreshResolve) { tokenRefreshResolve(false); tokenRefreshResolve = null; } }, 30000);
-  });
+// Called when Google rejects the token: send the user to a Reconnect tap
+function sessionExpired() {
+  clearToken();
+  showAuthScreen('Your Google session has expired. Tap below to reconnect — your place is kept.');
+  return new Error('Session expired — tap Reconnect');
 }
 
 document.getElementById('sign-in-btn').addEventListener('click', () => {
-  if (!tokenClient) { showError('Auth not ready yet. Please wait a moment.'); return; }
+  if (!tokenClient) { showError('Google sign-in is still loading. Wait a moment and try again.'); return; }
   document.getElementById('auth-error').classList.add('hidden');
-  tokenClient.requestAccessToken();
+  const btn = document.getElementById('sign-in-btn');
+  btn.disabled = true;
+  btn.textContent = 'Connecting…';
+  // Re-enable if the window never reports back (e.g. user switches apps)
+  setTimeout(() => { if (btn.disabled) { btn.disabled = false; btn.textContent = 'Connect Google'; } }, 20000);
+  tokenClient.requestAccessToken({ prompt: '' });
+});
+
+// When the app comes back to the foreground, check the token is still good
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (document.getElementById('main-screen').classList.contains('hidden')) return;
+  if (!tokenValid()) {
+    sessionExpired();
+  } else if (!currentRoutine) {
+    showHome(); // refresh progress from the sheet
+  }
 });
 
 // =====================================================================
 // SHEETS API HELPERS
 // =====================================================================
-async function api(path, opts = {}, retry = true) {
+async function api(path, opts = {}) {
+  if (!tokenValid()) throw sessionExpired();
   const res = await fetch(API + path, {
     ...opts,
     headers: {
@@ -627,11 +695,7 @@ async function api(path, opts = {}, retry = true) {
       ...(opts.headers || {}),
     },
   });
-  if (res.status === 401 && retry) {
-    const ok = await refreshToken();
-    if (ok) return api(path, opts, false);
-    throw new Error('Session expired — please reload the page');
-  }
+  if (res.status === 401) throw sessionExpired();
   if (!res.ok) {
     let errMsg = `Sheets request failed (${res.status})`;
     try { const j = await res.json(); errMsg = j.error?.message || errMsg; } catch {}
@@ -1187,6 +1251,10 @@ function updateDateLabel() {
 window.addEventListener('load', () => {
   updateDateLabel();
   initAuth();
+  if (loadStoredToken()) {
+    showMainScreen();
+    showHome();
+  }
 });
 </script>
 </body>
