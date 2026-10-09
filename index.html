@@ -541,6 +541,11 @@ const SPREADSHEET_ID = '1vPNfR9zXAG4XKeW_j6H9q9OKZacUFIBvwYCBIXB1a3I';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 const API = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
 
+// Exercises that always show a weight box instead of Yes/No.
+// Matched if the exercise name in the sheet contains the text, ignoring case,
+// so "Leg curls – 3×5" matches "leg curl". Add more names here if needed.
+const WEIGHT_EXERCISES = ['overhead press', 'db fly', 'direct biceps', 'leg curl'];
+
 // Hidden tab that stores which routines are done in the current cycle.
 // Every other visible tab in the spreadsheet is treated as a routine, in tab order.
 const PROGRESS_TAB = 'Progress';
@@ -957,7 +962,18 @@ function parseSheet(rows) {
     const isSectionHeader = !looksLikeExercise;
     const isNote = !isSectionHeader && /^\d+[–\-]/.test(name) && weight === '' && i > startRow;
 
-    exercises.push({ name, weight, rowIndex: i, isSectionHeader, isNote });
+    // Exercises listed in WEIGHT_EXERCISES always get a weight box.
+    // Their "Last" shows the most recent actual weight, skipping old yes/no ticks.
+    const forceWeight = WEIGHT_EXERCISES.some(w => name.toLowerCase().includes(w));
+    if (forceWeight) {
+      weight = '';
+      for (let c = row.length - 1; c >= 2; c--) {
+        const v = (row[c] || '').trim();
+        if (v && !/^(yes|no)$/i.test(v)) { weight = v; break; }
+      }
+    }
+
+    exercises.push({ name, weight, rowIndex: i, isSectionHeader, isNote, forceWeight });
   }
 
   return { title: headerRow[1].trim(), subtitle, exercises, headerRowIdx };
@@ -1043,7 +1059,7 @@ function renderExercises(parsed, tab) {
       info.appendChild(prev);
     }
 
-    const isYesNo = /^(yes|no)$/i.test((ex.weight || '').trim());
+    const isYesNo = !ex.forceWeight && /^(yes|no)$/i.test((ex.weight || '').trim());
 
     if (isYesNo) {
       const ynWrap = document.createElement('div');
